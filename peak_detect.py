@@ -1,12 +1,14 @@
 import sys
-from Queue import Queue
+from queue import Queue
 from ctypes import POINTER, c_ubyte, c_void_p, c_ulong, cast
+import subprocess
+from usbcolors import USBColors
 
 # From https://github.com/Valodim/python-pulseaudio
 from pulseaudio.lib_pulseaudio import *
 
-SINK_NAME = 'alsa_card.pci-0000_00_1b.0'  # edit to match your sink
-METER_RATE = 344
+SINK_NAME = b'alsa_output.usb-Razer_Razer_Kraken_7.1_Chroma-00-Chroma.analog-stereo'  # edit to match your sink
+METER_RATE = 100
 MAX_SAMPLE_VALUE = 127
 DISPLAY_SCALE = 2
 MAX_SPACES = MAX_SAMPLE_VALUE >> DISPLAY_SCALE
@@ -31,7 +33,7 @@ class PeakMonitor(object):
         # connection to Pulseaudio
         _mainloop = pa_threaded_mainloop_new()
         _mainloop_api = pa_threaded_mainloop_get_api(_mainloop)
-        context = pa_context_new(_mainloop_api, 'peak_demo')
+        context = pa_context_new(_mainloop_api, b'peak_demo')
         pa_context_set_state_callback(context, self._context_notify_cb, None)
         pa_context_connect(context, None, 0, None)
         pa_threaded_mainloop_start(_mainloop)
@@ -44,40 +46,40 @@ class PeakMonitor(object):
         state = pa_context_get_state(context)
 
         if state == PA_CONTEXT_READY:
-            print "Pulseaudio connection ready..."
+            print("Pulseaudio connection ready...")
             # Connected to Pulseaudio. Now request that sink_info_cb
             # be called with information about the available sinks.
             o = pa_context_get_sink_info_list(context, self._sink_info_cb, None)
             pa_operation_unref(o)
 
         elif state == PA_CONTEXT_FAILED :
-            print "Connection failed"
+            print("Connection failed")
 
         elif state == PA_CONTEXT_TERMINATED:
-            print "Connection terminated"
+            print("Connection terminated")
 
     def sink_info_cb(self, context, sink_info_p, _, __):
         if not sink_info_p:
             return
 
         sink_info = sink_info_p.contents
-        print '-'* 60
-        print 'index:', sink_info.index
-        print 'name:', sink_info.name
-        print 'description:', sink_info.description
+        print('-'* 60)
+        print('index:', sink_info.index)
+        print('name:', sink_info.name)
+        print('description:', sink_info.description)
 
         if sink_info.name == self.sink_name:
             # Found the sink we want to monitor for peak levels.
             # Tell PA to call stream_read_cb with peak samples.
-            print
-            print 'setting up peak recording using', sink_info.monitor_source_name
-            print
+            print()
+            print('setting up peak recording using', sink_info.monitor_source_name)
+            print()
             samplespec = pa_sample_spec()
             samplespec.channels = 1
             samplespec.format = PA_SAMPLE_U8
             samplespec.rate = self.rate
 
-            pa_stream = pa_stream_new(context, "peak detect demo", samplespec, None)
+            pa_stream = pa_stream_new(context, b'peak detect demo', samplespec, None)
             pa_stream_set_read_callback(pa_stream,
                                         self._stream_read_cb,
                                         sink_info.index)
@@ -90,7 +92,7 @@ class PeakMonitor(object):
         data = c_void_p()
         pa_stream_peek(stream, data, c_ulong(length))
         data = cast(data, POINTER(c_ubyte))
-        for i in xrange(length):
+        for i in range(length):
             # When PA_SAMPLE_U8 is used, samples values range from 128
             # to 255 because the underlying audio data is signed but
             # it doesn't make sense to return signed peaks.
@@ -99,12 +101,14 @@ class PeakMonitor(object):
 
 def main():
     monitor = PeakMonitor(SINK_NAME, METER_RATE)
+    usbcolors = USBColors()
     for sample in monitor:
         sample = sample >> DISPLAY_SCALE
         bar = '>' * sample
         spaces = ' ' * (MAX_SPACES - sample)
-        print ' %3d %s%s\r' % (sample, bar, spaces),
+        print(' %3d %s%s\r' % (sample, bar, spaces),end="")
         sys.stdout.flush()
+        subprocess.call(['/usr/local/bin/usbcolors','--green',str(sample * 2)])
 
 if __name__ == '__main__':
     main()
