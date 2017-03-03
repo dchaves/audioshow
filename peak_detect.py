@@ -8,7 +8,7 @@ from usbcolors import USBColors
 from pulseaudio.lib_pulseaudio import *
 
 SINK_NAME = b'alsa_output.usb-Razer_Razer_Kraken_7.1_Chroma-00-Chroma.analog-stereo'  # edit to match your sink
-METER_RATE = 100
+METER_RATE = 25
 MAX_SAMPLE_VALUE = 127
 DISPLAY_SCALE = 2
 MAX_SPACES = MAX_SAMPLE_VALUE >> DISPLAY_SCALE
@@ -108,7 +108,7 @@ def main():
         spaces = ' ' * (MAX_SPACES - sample)
         print(' %3d %s%s\r' % (sample, bar, spaces),end="")
         sys.stdout.flush()
-        subprocess.call(['/usr/local/bin/usbcolors','--green',str(sample * 2)])
+        usbcolors.set_RGB(0,sample * 4,0)
 
 if __name__ == '__main__':
     main()

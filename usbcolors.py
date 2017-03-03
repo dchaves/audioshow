@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-
+import threading
 from pyftdi.gpio import GpioController, GpioException
+import numpy as np
 
-class USBColors(object):
+class USBColors(threading.Thread):
 	"""
 	"""
 	BLUE = 0x01
@@ -10,26 +11,55 @@ class USBColors(object):
 	RED = 0x08
 	WHITE = RED | GREEN | BLUE
 	BLACK = 0x00
+	LOOP_MAX = 512
+
 
 	def __init__(self, ftdi_url = 'ftdi://ftdi:232r/1'):
+		threading.Thread.__init__(self)
 		self.gpio = GpioController()
 		self.state = 0
 		self.ftdi_url = ftdi_url
+		self.exitFlag = False
+		self.sequence = [self.BLACK] * self.LOOP_MAX
+		self.ledstatus = self.WHITE
+		self.open()
+		self.start()
+
+	def run(self):
+		while not self.exitFlag:
+			for i in range(0, self.LOOP_MAX):
+				self.ledstatus = (self.ledstatus & (~self.sequence[i] & self.WHITE))
+				self.ledstatus = (self.ledstatus | (~self.sequence[i] & self.WHITE))
+				self.gpio.write_port(self.ledstatus)
+				if self.exitFlag:
+					break
+
+	def stop(self):
+		self.exitFlag = True
+		self.join()
+		self.gpio.close()
 
 	def open(self):
 		self.gpio.open_from_url(self.ftdi_url, self.WHITE)
 
-	def close(self):
-		self.gpio.close()
-
 	def set_color(self, color):
-		self.gpio.write_port(self.WHITE & ~color)
+		self.sequence = [color] * self.LOOP_MAX
 
-	def set_intensity(self, color, intensity):
-		index = 0
-		while True:
-			if(index < intensity):
-				self.set_color(color)
-			else:
-				self.set_color(self.BLACK)
-			index = (index + 1) % (intensity + 1)
+	def set_RGB(self, red_intensity, green_intensity, blue_intensity):
+		red_indexes = list(set(np.floor(np.linspace(0, self.LOOP_MAX, red_intensity))))
+		green_indexes = list(set(np.floor(np.linspace(0, self.LOOP_MAX, green_intensity))))
+		blue_indexes = list(set(np.floor(np.linspace(0, self.LOOP_MAX, blue_intensity))))
+
+		#print("RED - ", red_indexes)
+		#print("GREEN - ", green_indexes)
+		#print("BLUE - ", blue_indexes)
+		for i in range(0,self.LOOP_MAX):
+			self.sequence[i] = 0
+			if i in red_indexes:
+				self.sequence[i] += self.RED
+			if i in green_indexes:
+				self.sequence[i] += self.GREEN
+			if i in blue_indexes:
+				self.sequence[i] += self.BLUE
+		# self.sequence = [self.BLACK] * self.LOOP_MAX
+		#print("SEQ - ", self.sequence)
