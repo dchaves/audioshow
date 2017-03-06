@@ -2,12 +2,15 @@ import sys
 from queue import Queue
 from ctypes import POINTER, c_ubyte, c_void_p, c_ulong, cast
 import subprocess
-from usbcolors import USBColors
+#from usbcolors import USBColors
+import json
+import httplib2
+import numpy as np
 
-# From https://github.com/Valodim/python-pulseaudio
+# From https://github.com/skakri/python3-pulseaudio.git
 from pulseaudio.lib_pulseaudio import *
 
-SINK_NAME = b'alsa_output.usb-Razer_Razer_Kraken_7.1_Chroma-00-Chroma.analog-stereo'  # edit to match your sink
+SINK_NAME = b'alsa_output.pci-0000_00_1b.0.analog-stereo'  # edit to match your sink
 METER_RATE = 10
 MAX_SAMPLE_VALUE = 127
 DISPLAY_SCALE = 2
@@ -101,8 +104,11 @@ class PeakMonitor(object):
 
 def main():
     monitor = PeakMonitor(SINK_NAME, METER_RATE)
-    usbcolors = USBColors()
+    # usbcolors = USBColors()
     max = 1
+    hueurl = 'http://192.168.1.41/api/78lBjKTWW3Du3WL2ch0RwTvx2Mqapu6qxgvJHbeI/lights/1/state'
+    connection = httplib2.Http(".cache")
+    power = 3
     for sample in monitor:
         if sample > max:
             max = sample
@@ -112,7 +118,12 @@ def main():
         #spaces = ' ' * (MAX_SPACES - sample)
         #print(' %3d %s%s\n' % (sample, bar, spaces),end="")
         #sys.stdout.flush()
-        usbcolors.set_RGB(0,sample * USBColors.LOOP_MAX / max,0)
+        #usbcolors.set_RGB(0,sample * USBColors.LOOP_MAX / max,0)
+        command = {'bri': int(np.floor((sample ** power) * 255 / (max**power))), 'effect': 'colorloop'}
+        (resp, content) = connection.request(hueurl, 'PUT', body = json.dumps(command), headers={'content-type':'application/json'})
+        #print(json.dumps(command))
+        #print(resp)
+
 
 if __name__ == '__main__':
     main()
