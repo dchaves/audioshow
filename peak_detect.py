@@ -103,6 +103,7 @@ def main():
     monitor = PeakMonitor(SINK_NAME, METER_RATE)
     usbcolors = USBColors()
     max = 1
+    power = 3
     for sample in monitor:
         if sample > max:
             max = sample
@@ -112,7 +113,7 @@ def main():
         #spaces = ' ' * (MAX_SPACES - sample)
         #print(' %3d %s%s\n' % (sample, bar, spaces),end="")
         #sys.stdout.flush()
-        usbcolors.set_RGB(0,sample * USBColors.LOOP_MAX / max,0)
+        usbcolors.set_RGB(0,(sample ** power) * USBColors.LOOP_MAX / (max ** power),0)
 
 if __name__ == '__main__':
     main()
