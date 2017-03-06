@@ -22,20 +22,24 @@ class USBColors(threading.Thread):
 		self.exitFlag = False
 		self.sequence = [self.BLACK] * self.LOOP_MAX
 		self.ledstatus = self.WHITE
+		self.lock = threading.Lock()
 		self.open()
 		self.start()
 
 	def run(self):
 		while not self.exitFlag:
+			with self.lock:
+				syncseq = self.sequence
 			for i in range(0, self.LOOP_MAX):
-				self.ledstatus = (self.ledstatus & (~self.sequence[i] & self.WHITE))
-				self.ledstatus = (self.ledstatus | (~self.sequence[i] & self.WHITE))
+				self.ledstatus = (self.ledstatus & (~syncseq[i] & self.WHITE))
+				self.ledstatus = (self.ledstatus | (~syncseq[i] & self.WHITE))
 				self.gpio.write_port(self.ledstatus)
 				if self.exitFlag:
 					break
 
 	def stop(self):
 		self.exitFlag = True
+		self.gpio.write_port(self.WHITE)
 		self.join()
 		self.gpio.close()
 
@@ -53,13 +57,15 @@ class USBColors(threading.Thread):
 		#print("RED - ", red_indexes)
 		#print("GREEN - ", green_indexes)
 		#print("BLUE - ", blue_indexes)
+		seq = [0] * self.LOOP_MAX
 		for i in range(0,self.LOOP_MAX):
-			self.sequence[i] = 0
 			if i in red_indexes:
-				self.sequence[i] += self.RED
+				seq[i] += self.RED
 			if i in green_indexes:
-				self.sequence[i] += self.GREEN
+				seq[i] += self.GREEN
 			if i in blue_indexes:
-				self.sequence[i] += self.BLUE
-		# self.sequence = [self.BLACK] * self.LOOP_MAX
-		#print("SEQ - ", self.sequence)
+				seq[i] += self.BLUE
+		with self.lock:
+			self.sequence = seq
+			# self.sequence = [self.BLACK] * self.LOOP_MAX
+			#print("SEQ - ", self.sequence)

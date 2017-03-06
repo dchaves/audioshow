@@ -8,7 +8,7 @@ from usbcolors import USBColors
 from pulseaudio.lib_pulseaudio import *
 
 SINK_NAME = b'alsa_output.usb-Razer_Razer_Kraken_7.1_Chroma-00-Chroma.analog-stereo'  # edit to match your sink
-METER_RATE = 25
+METER_RATE = 10
 MAX_SAMPLE_VALUE = 127
 DISPLAY_SCALE = 2
 MAX_SPACES = MAX_SAMPLE_VALUE >> DISPLAY_SCALE
@@ -102,13 +102,17 @@ class PeakMonitor(object):
 def main():
     monitor = PeakMonitor(SINK_NAME, METER_RATE)
     usbcolors = USBColors()
+    max = 1
     for sample in monitor:
-        sample = sample >> DISPLAY_SCALE
-        bar = '>' * sample
-        spaces = ' ' * (MAX_SPACES - sample)
-        print(' %3d %s%s\r' % (sample, bar, spaces),end="")
-        sys.stdout.flush()
-        usbcolors.set_RGB(0,sample * 4,0)
+        if sample > max:
+            max = sample
+            print("MAX: ", max)
+        #sample = sample >> DISPLAY_SCALE
+        #bar = '>' * sample
+        #spaces = ' ' * (MAX_SPACES - sample)
+        #print(' %3d %s%s\n' % (sample, bar, spaces),end="")
+        #sys.stdout.flush()
+        usbcolors.set_RGB(0,sample * USBColors.LOOP_MAX / max,0)
 
 if __name__ == '__main__':
     main()
